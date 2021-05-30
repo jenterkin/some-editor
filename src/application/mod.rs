@@ -55,6 +55,16 @@ impl Application {
     fn handle_normal_mode_event(&mut self, event: termion::event::Key) {
         match event {
             Key::Char('q') => self.quit = true,
+            Key::Char('i') => self.mode = Modes::Insert,
+            Key::Char(':') => self.mode = Modes::Command,
+            _ => {}
+        }
+    }
+
+    fn handle_command_mode_event(&mut self, event: termion::event::Key) {
+        match event {
+            Key::Char('q') => self.quit = true,
+            Key::Esc => self.mode = Modes::Normal,
             _ => {}
         }
     }
@@ -63,7 +73,7 @@ impl Application {
         match self.mode {
             Modes::Insert => self.handle_insert_mode_event(event),
             Modes::Normal => self.handle_normal_mode_event(event),
-            _ => {}
+            Modes::Command => self.handle_command_mode_event(event),
         }
     }
 
