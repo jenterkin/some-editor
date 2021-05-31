@@ -36,7 +36,6 @@ impl Application {
 
     fn handle_insert_mode_event(&mut self, event: termion::event::Key) {
         match event {
-            // TODO(jenterkin): is there a more elegant way to quit?
             Key::Esc => self.view.change_mode(Modes::Normal),
             Key::Char(c) => self.view.write_char(c),
             _ => {}
