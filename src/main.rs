@@ -1,4 +1,5 @@
-mod application;
+pub mod application;
+pub mod view;
 
 use crate::application::Application;
 
