@@ -72,7 +72,6 @@ impl Application {
     }
 
     pub fn start(mut self) {
-        // Set the initial position.
         self.view.start();
         self.listen();
     }
