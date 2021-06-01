@@ -46,7 +46,7 @@ impl Terminal {
 
     fn write_visible_lines(&mut self, data: &Rope) {
         let height = terminal_size().unwrap().1 as usize;
-        let num_lines = data.len_lines();
+        let num_lines = data.len_lines() - 1;
         let end = if num_lines > height as usize {
             self.view.top + height as usize
         } else {
@@ -82,12 +82,12 @@ impl ViewTrait for Terminal {
 
     fn command_pop(&mut self) {
         self.command.pop();
+        self.should_update = true;
     }
 
     fn command_push(&mut self, char: char) {
         self.command.push(char);
-        self.position.col += 1;
-        self.write_char(char);
+        self.should_update = true;
     }
 
     fn change_mode(&mut self, mode: Modes) {
@@ -98,6 +98,7 @@ impl ViewTrait for Terminal {
                 self.position = self.last_position.clone();
                 self.update_position(self.position.row, self.position.col);
                 self.command = String::from("");
+                self.should_update = true;
             }
             _ => {}
         }
@@ -113,6 +114,7 @@ impl ViewTrait for Terminal {
             }
             _ => {}
         }
+        self.should_update = true;
     }
 
     fn write_char(&mut self, char: char) {
@@ -141,9 +143,32 @@ impl ViewTrait for Terminal {
 
     fn render(&mut self, data: &Rope) {
         if self.should_update {
-            write!(self.output, "{}", termion::clear::All).unwrap();
+            write!(
+                self.output,
+                "{}{}",
+                termion::clear::All,
+                termion::cursor::Goto(1, 1)
+            )
+            .unwrap();
             self.write_visible_lines(data);
             self.update_position(self.position.row, self.position.col);
+            self.output.flush().unwrap();
+
+            match self.mode {
+                Modes::Command => {
+                    let last_line = termion::terminal_size().unwrap().1;
+                    self.position.row = last_line;
+                    write!(
+                        self.output,
+                        "{}:{}",
+                        termion::cursor::Goto(1, last_line),
+                        self.command
+                    )
+                    .unwrap();
+                }
+                _ => {}
+            }
+
             self.output.flush().unwrap();
             self.should_update = false;
         }

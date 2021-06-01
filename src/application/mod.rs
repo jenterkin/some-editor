@@ -33,9 +33,9 @@ impl Application {
     }
 
     fn handle_command(&mut self) {
-        match self.command.as_str() {
+        match self.view.command.as_str() {
             "q" => self.quit = true,
-            _ => self.view.change_mode(Modes::Normal),
+            _ => self.change_mode(Modes::Normal),
         }
     }
 
@@ -47,11 +47,16 @@ impl Application {
         }
     }
 
+    fn change_mode(&mut self, mode: Modes) {
+        self.mode = mode;
+        self.view.change_mode(mode);
+    }
+
     fn handle_normal_mode_event(&mut self, event: termion::event::Key) {
         match event {
             Key::Char('q') => self.quit = true,
-            Key::Char('i') => self.view.change_mode(Modes::Insert),
-            Key::Char(':') => self.view.change_mode(Modes::Command),
+            Key::Char('i') => self.change_mode(Modes::Insert),
+            Key::Char(':') => self.change_mode(Modes::Command),
             Key::Ctrl('e') => self.view.scroll_down(),
             Key::Ctrl('y') => self.view.scroll_up(),
             _ => {}
@@ -63,7 +68,7 @@ impl Application {
             Key::Backspace => self.view.command_pop(),
             Key::Char('\n') => self.handle_command(),
             Key::Char(c) => self.view.command_push(c),
-            Key::Esc => self.view.change_mode(Modes::Normal),
+            Key::Esc => self.change_mode(Modes::Normal),
             _ => {}
         }
     }
@@ -87,8 +92,8 @@ impl Application {
 
             if let Some(event) = input {
                 self.handle_event(event.unwrap());
-                self.view.render(&self.buffer.data) // don't render unless something happened.
             }
+            self.view.render(&self.buffer.data) // don't render unless something happened.
         }
     }
 }
