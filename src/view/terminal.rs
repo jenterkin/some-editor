@@ -34,7 +34,7 @@ impl Terminal {
                 AlternateScreen::from(stdout()).into_raw_mode().unwrap(),
             ),
             view: View { top: 0 },
-            // TODO(jenterkin): `las_position` should probably be optional
+            // TODO(jenterkin): `last_position` should probably be optional
             last_position: CursorPosition { row: 1, col: 1 },
             position: CursorPosition { row: 1, col: 1 },
             command: String::from(""),
@@ -43,14 +43,14 @@ impl Terminal {
     }
 
     fn write_visible_lines(&mut self, data: &Rope) {
+        let start = self.view.top;
         let height = terminal_size().unwrap().1 as usize;
-        let num_lines = data.len_lines() - 1;
-        let end = if num_lines > height as usize {
+        let num_lines = data.len_lines();
+        let end = if (num_lines - start) > height as usize {
             self.view.top + height as usize
         } else {
             num_lines
         };
-        let start = self.view.top;
 
         let mut row = 1;
         for line_num in start..end {
@@ -118,10 +118,13 @@ impl ViewTrait for Terminal {
     }
 
     fn scroll_up(&mut self) {
-        self.view.top -= 1;
+        if self.view.top > 0 {
+            self.view.top -= 1;
+        }
     }
 
     fn scroll_down(&mut self) {
+        // TODO(jenterkin): stop at last line of buffer
         self.view.top += 1;
     }
 
