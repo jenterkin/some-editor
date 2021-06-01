@@ -1,6 +1,6 @@
 use super::traits::View as ViewTrait;
+use crate::application::buffer::Buffer;
 use crate::application::modes::Modes;
-use ropey::Rope;
 use std::io::{stdout, BufWriter, Stdout, Write};
 use termion;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -42,10 +42,38 @@ impl Terminal {
         };
     }
 
-    fn write_visible_lines(&mut self, data: &Rope) {
+    fn highlight_line(
+        &mut self,
+        line: String,
+        line_index: usize,
+        selections: &Vec<(usize, usize)>,
+    ) -> String {
+        // TODO(jenterkin): support multiple selection highlights.
+        if selections.len() > 0 {
+            for selection in selections {
+                let mut result = String::from("");
+                let red = termion::color::Red.bg_str();
+                let reset = termion::color::Reset.bg_str();
+                let start = selection.0 - line_index;
+                let end = selection.1 - line_index + red.len();
+                if start == 0 {
+                    result.push_str(red);
+                } else {
+                    result = line[0..start].to_string();
+                    result.push_str(red);
+                }
+                result.push_str(&line[start..]);
+                result = result[..end].to_string() + reset + &result[end..].to_string();
+                return result;
+            }
+        }
+        return line;
+    }
+
+    fn write_visible_lines(&mut self, buffer: &Buffer) {
         let start = self.view.top;
         let height = terminal_size().unwrap().1 as usize;
-        let num_lines = data.len_lines();
+        let num_lines = buffer.data.len_lines();
         let end = if (num_lines - start) > height as usize {
             self.view.top + height as usize
         } else {
@@ -53,10 +81,22 @@ impl Terminal {
         };
 
         let mut row = 1;
-        for line_num in start..end {
-            if let Some(line) = data.line(line_num).as_str() {
+        for line_num in start..end - 1 {
+            let line = buffer.data.line(line_num);
+            if let Some(line_str) = line.as_str() {
                 row += 1;
-                write!(self.output, "{}{}", line, termion::cursor::Goto(1, row)).unwrap();
+                let mut line_data = String::from(line_str);
+                if let Some(selections) = &buffer.selections.get_selections_for_line(line_num) {
+                    let line_index = buffer.data.line_to_byte(line_num);
+                    line_data = self.highlight_line(line_data.to_string(), line_index, &selections);
+                }
+                write!(
+                    self.output,
+                    "{}{}",
+                    &line_data,
+                    termion::cursor::Goto(1, row)
+                )
+                .unwrap();
             }
         }
     }
@@ -130,7 +170,7 @@ impl ViewTrait for Terminal {
         }
     }
 
-    fn render(&mut self, data: &Rope, command: &String) {
+    fn render(&mut self, buffer: &Buffer, command: &String) {
         write!(
             self.output,
             "{}{}",
@@ -138,7 +178,7 @@ impl ViewTrait for Terminal {
             termion::cursor::Goto(1, 1)
         )
         .unwrap();
-        self.write_visible_lines(data);
+        self.write_visible_lines(&buffer);
         self.update_position(self.position.row, self.position.col);
         self.output.flush().unwrap();
 

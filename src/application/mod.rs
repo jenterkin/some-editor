@@ -1,4 +1,4 @@
-mod buffer;
+pub mod buffer;
 pub mod modes;
 
 use crate::view::terminal::Terminal;
@@ -57,7 +57,13 @@ impl Application {
             Key::Char('q') => self.quit = true,
             Key::Char('i') => self.change_mode(Modes::Insert),
             Key::Char(':') => self.change_mode(Modes::Command),
-            Key::Ctrl('e') => self.view.scroll_down(self.buffer.data.len_lines()),
+            // Selections
+            Key::Char('h') => self.buffer.select_char_left(),
+            Key::Char('j') => self.buffer.select_char_down(),
+            Key::Char('k') => self.buffer.select_char_up(),
+            Key::Char('l') => self.buffer.select_char_right(),
+            // Scrolling
+            Key::Ctrl('e') => self.view.scroll_down(self.buffer.len_lines()),
             Key::Ctrl('y') => self.view.scroll_up(),
             _ => {}
         }
@@ -85,7 +91,7 @@ impl Application {
 
     pub fn start(mut self) {
         self.view.start();
-        self.view.render(&self.buffer.data, &self.command);
+        self.view.render(&self.buffer, &self.command);
         self.listen();
     }
 
@@ -95,7 +101,7 @@ impl Application {
 
             if let Some(event) = input {
                 self.handle_event(event.unwrap());
-                self.view.render(&self.buffer.data, &self.command);
+                self.view.render(&self.buffer, &self.command);
             }
         }
     }
