@@ -6,6 +6,6 @@ pub trait View {
     fn change_mode(&mut self, mode: Modes);
     fn write_char(&mut self, char: char);
     fn scroll_up(&mut self);
-    fn scroll_down(&mut self);
+    fn scroll_down(&mut self, len_lines: usize);
     fn render(&mut self, data: &Rope, command: &String);
 }

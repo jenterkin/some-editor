@@ -123,9 +123,11 @@ impl ViewTrait for Terminal {
         }
     }
 
-    fn scroll_down(&mut self) {
-        // TODO(jenterkin): stop at last line of buffer
-        self.view.top += 1;
+    fn scroll_down(&mut self, len_lines: usize) {
+        // why is it `- 2`?
+        if self.view.top < len_lines - 2 {
+            self.view.top += 1;
+        }
     }
 
     fn render(&mut self, data: &Rope, command: &String) {

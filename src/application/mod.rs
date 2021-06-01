@@ -57,7 +57,7 @@ impl Application {
             Key::Char('q') => self.quit = true,
             Key::Char('i') => self.change_mode(Modes::Insert),
             Key::Char(':') => self.change_mode(Modes::Command),
-            Key::Ctrl('e') => self.view.scroll_down(),
+            Key::Ctrl('e') => self.view.scroll_down(self.buffer.data.len_lines()),
             Key::Ctrl('y') => self.view.scroll_up(),
             _ => {}
         }
