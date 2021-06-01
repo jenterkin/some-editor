@@ -19,7 +19,6 @@ pub struct View {
 
 pub struct Terminal {
     view: View,
-    should_update: bool,
     output: BufWriter<RawTerminal<AlternateScreen<Stdout>>>,
     last_position: CursorPosition,
     position: CursorPosition,
@@ -34,7 +33,6 @@ impl Terminal {
                 1_048_576,
                 AlternateScreen::from(stdout()).into_raw_mode().unwrap(),
             ),
-            should_update: true,
             view: View { top: 0 },
             // TODO(jenterkin): `las_position` should probably be optional
             last_position: CursorPosition { row: 1, col: 1 },
@@ -80,16 +78,6 @@ impl ViewTrait for Terminal {
         self.update_position(self.position.col, self.position.row);
     }
 
-    fn command_pop(&mut self) {
-        self.command.pop();
-        self.should_update = true;
-    }
-
-    fn command_push(&mut self, char: char) {
-        self.command.push(char);
-        self.should_update = true;
-    }
-
     fn change_mode(&mut self, mode: Modes) {
         // cleanup
         match self.mode {
@@ -98,7 +86,6 @@ impl ViewTrait for Terminal {
                 self.position = self.last_position.clone();
                 self.update_position(self.position.row, self.position.col);
                 self.command = String::from("");
-                self.should_update = true;
             }
             _ => {}
         }
@@ -114,7 +101,6 @@ impl ViewTrait for Terminal {
             }
             _ => {}
         }
-        self.should_update = true;
     }
 
     fn write_char(&mut self, char: char) {
@@ -133,44 +119,39 @@ impl ViewTrait for Terminal {
 
     fn scroll_up(&mut self) {
         self.view.top -= 1;
-        self.should_update = true;
     }
 
     fn scroll_down(&mut self) {
         self.view.top += 1;
-        self.should_update = true;
     }
 
-    fn render(&mut self, data: &Rope) {
-        if self.should_update {
-            write!(
-                self.output,
-                "{}{}",
-                termion::clear::All,
-                termion::cursor::Goto(1, 1)
-            )
-            .unwrap();
-            self.write_visible_lines(data);
-            self.update_position(self.position.row, self.position.col);
-            self.output.flush().unwrap();
+    fn render(&mut self, data: &Rope, command: &String) {
+        write!(
+            self.output,
+            "{}{}",
+            termion::clear::All,
+            termion::cursor::Goto(1, 1)
+        )
+        .unwrap();
+        self.write_visible_lines(data);
+        self.update_position(self.position.row, self.position.col);
+        self.output.flush().unwrap();
 
-            match self.mode {
-                Modes::Command => {
-                    let last_line = termion::terminal_size().unwrap().1;
-                    self.position.row = last_line;
-                    write!(
-                        self.output,
-                        "{}:{}",
-                        termion::cursor::Goto(1, last_line),
-                        self.command
-                    )
-                    .unwrap();
-                }
-                _ => {}
+        match self.mode {
+            Modes::Command => {
+                let last_line = termion::terminal_size().unwrap().1;
+                self.position.row = last_line;
+                write!(
+                    self.output,
+                    "{}:{}",
+                    termion::cursor::Goto(1, last_line),
+                    &command
+                )
+                .unwrap();
             }
-
-            self.output.flush().unwrap();
-            self.should_update = false;
+            _ => {}
         }
+
+        self.output.flush().unwrap();
     }
 }

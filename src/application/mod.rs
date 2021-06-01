@@ -33,7 +33,7 @@ impl Application {
     }
 
     fn handle_command(&mut self) {
-        match self.view.command.as_str() {
+        match self.command.as_str() {
             "q" => self.quit = true,
             _ => self.change_mode(Modes::Normal),
         }
@@ -65,9 +65,11 @@ impl Application {
 
     fn handle_command_mode_event(&mut self, event: termion::event::Key) {
         match event {
-            Key::Backspace => self.view.command_pop(),
+            Key::Backspace => {
+                self.command.pop();
+            }
             Key::Char('\n') => self.handle_command(),
-            Key::Char(c) => self.view.command_push(c),
+            Key::Char(c) => self.command.push(c),
             Key::Esc => self.change_mode(Modes::Normal),
             _ => {}
         }
@@ -83,6 +85,7 @@ impl Application {
 
     pub fn start(mut self) {
         self.view.start();
+        self.view.render(&self.buffer.data, &self.command);
         self.listen();
     }
 
@@ -92,8 +95,8 @@ impl Application {
 
             if let Some(event) = input {
                 self.handle_event(event.unwrap());
+                self.view.render(&self.buffer.data, &self.command);
             }
-            self.view.render(&self.buffer.data) // don't render unless something happened.
         }
     }
 }
