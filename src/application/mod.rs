@@ -1,19 +1,23 @@
+mod buffer;
 pub mod modes;
 
 use crate::view::terminal::Terminal;
 use crate::view::traits::View;
+use buffer::Buffer;
 use modes::Modes;
 use std::fs;
 use termion::event::Key;
 use termion::input::{Keys, TermRead};
 use termion::AsyncReader;
 
+/// `Application` handles the logic of the application and is responsible for managing state.
 pub struct Application {
     quit: bool,
     mode: Modes,
     command: String,
     view: Terminal,
     input: Keys<AsyncReader>,
+    buffer: Buffer,
 }
 
 impl Application {
@@ -22,8 +26,9 @@ impl Application {
             quit: false,
             mode: Modes::Normal,
             command: String::from(""),
-            view: Terminal::new(fs::read_to_string("src/application/mod.rs").unwrap()),
+            view: Terminal::new(),
             input: termion::async_stdin().keys(),
+            buffer: Buffer::new(fs::read_to_string("src/application/mod.rs").unwrap()),
         }
     }
 
@@ -82,9 +87,8 @@ impl Application {
 
             if let Some(event) = input {
                 self.handle_event(event.unwrap());
+                self.view.render(&self.buffer.data) // don't render unless something happened.
             }
-
-            self.view.render()
         }
     }
 }

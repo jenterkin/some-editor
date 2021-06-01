@@ -1,4 +1,5 @@
 use crate::application::modes::Modes;
+use ropey::Rope;
 
 pub trait View {
     fn start(&mut self);
@@ -8,5 +9,5 @@ pub trait View {
     fn write_char(&mut self, char: char);
     fn scroll_up(&mut self);
     fn scroll_down(&mut self);
-    fn render(&mut self);
+    fn render(&mut self, data: &Rope);
 }

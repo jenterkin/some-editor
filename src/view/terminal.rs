@@ -18,7 +18,6 @@ pub struct View {
 }
 
 pub struct Terminal {
-    data: Rope,
     view: View,
     should_update: bool,
     output: BufWriter<RawTerminal<AlternateScreen<Stdout>>>,
@@ -29,9 +28,8 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    pub fn new(data: String) -> Terminal {
+    pub fn new() -> Terminal {
         return Terminal {
-            data: Rope::from(data),
             output: BufWriter::with_capacity(
                 1_048_576,
                 AlternateScreen::from(stdout()).into_raw_mode().unwrap(),
@@ -46,9 +44,9 @@ impl Terminal {
         };
     }
 
-    fn write_visible_lines(&mut self) {
+    fn write_visible_lines(&mut self, data: &Rope) {
         let height = terminal_size().unwrap().1 as usize;
-        let num_lines = self.data.len_lines();
+        let num_lines = data.len_lines();
         let end = if num_lines > height as usize {
             self.view.top + height as usize
         } else {
@@ -58,7 +56,7 @@ impl Terminal {
 
         let mut row = 1;
         for line_num in start..end {
-            if let Some(line) = self.data.line(line_num).as_str() {
+            if let Some(line) = data.line(line_num).as_str() {
                 row += 1;
                 write!(self.output, "{}{}", line, termion::cursor::Goto(1, row)).unwrap();
             }
@@ -141,10 +139,10 @@ impl ViewTrait for Terminal {
         self.should_update = true;
     }
 
-    fn render(&mut self) {
+    fn render(&mut self, data: &Rope) {
         if self.should_update {
             write!(self.output, "{}", termion::clear::All).unwrap();
-            self.write_visible_lines();
+            self.write_visible_lines(data);
             self.update_position(self.position.row, self.position.col);
             self.output.flush().unwrap();
             self.should_update = false;
