@@ -14,17 +14,15 @@ struct CursorPosition {
     col: u16,
 }
 
-pub struct View {
-    pub top: usize,
-}
-
 pub struct Terminal {
-    view: View,
+    top: usize,
     output: BufWriter<RawTerminal<AlternateScreen<Stdout>>>,
     last_position: CursorPosition,
     position: CursorPosition,
     pub command: String,
     mode: Modes,
+    highlighter: Highlighter,
+    processed_buffer: String,
 }
 
 impl Terminal {
@@ -34,12 +32,14 @@ impl Terminal {
                 1_048_576,
                 AlternateScreen::from(stdout()).into_raw_mode().unwrap(),
             ),
-            view: View { top: 0 },
+            top: 0,
             // TODO(jenterkin): `last_position` should probably be optional
             last_position: CursorPosition { row: 1, col: 1 },
             position: CursorPosition { row: 1, col: 1 },
             command: String::from(""),
             mode: Modes::Normal,
+            highlighter: Highlighter::new(),
+            processed_buffer: String::from(""),
         };
     }
 
@@ -72,11 +72,11 @@ impl Terminal {
     }
 
     fn write_visible_lines(&mut self, buffer: &Buffer) {
-        let start = self.view.top;
+        let start = self.top;
         let height = terminal_size().unwrap().1 as usize;
         let num_lines = buffer.data.len_lines();
         let end = if (num_lines - start) > height as usize {
-            self.view.top + height as usize
+            self.top + height as usize
         } else {
             num_lines
         };
@@ -95,11 +95,9 @@ impl Terminal {
                 }
             }
         }
-        view = Highlighter::new().highlight(&view);
         // view = self.highlight(view);
-        let lines = view.split('\n');
         let mut row = 1;
-        for line in &view.split('\n').collect::<Vec<&str>>()[start..end] {
+        for line in &self.processed_buffer.split('\n').collect::<Vec<&str>>()[start..end] {
             row += 1;
             write!(self.output, "{}{}", line, termion::cursor::Goto(1, row)).unwrap();
         }
@@ -120,6 +118,7 @@ impl Terminal {
 impl ViewTrait for Terminal {
     fn start(&mut self) {
         self.update_position(self.position.col, self.position.row);
+        write!(self.output, "{}", termion::cursor::Hide);
     }
 
     fn change_mode(&mut self, mode: Modes) {
@@ -162,19 +161,22 @@ impl ViewTrait for Terminal {
     }
 
     fn scroll_up(&mut self) {
-        if self.view.top > 0 {
-            self.view.top -= 1;
+        if self.top > 0 {
+            self.top -= 1;
         }
     }
 
     fn scroll_down(&mut self, len_lines: usize) {
         // why is it `- 2`?
-        if self.view.top < len_lines - 2 {
-            self.view.top += 1;
+        if self.top < len_lines - 2 {
+            self.top += 1;
         }
     }
 
     fn render(&mut self, buffer: &Buffer, command: &String) {
+        if self.processed_buffer == String::from("") {
+            self.processed_buffer = self.highlighter.highlight(&buffer.data.to_string());
+        }
         write!(
             self.output,
             "{}{}",
