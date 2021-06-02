@@ -11,6 +11,7 @@ use std::io::stdin;
 use termion::event::Key;
 use termion::input::TermRead;
 use tokio::sync::mpsc;
+use std::thread::{JoinHandle, spawn};
 
 /// `Application` handles the logic of the application and is responsible for managing state.
 pub struct Application {
@@ -95,8 +96,9 @@ impl Application {
         self.view.render(&self.buffer, &self.command);
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        self.listen(sender);
+        let listener = self.listen(sender);
         self.handle_events(&mut receiver).await;
+        drop(listener);
     }
 
     async fn handle_events(&mut self, receiver: &mut mpsc::UnboundedReceiver<Key>) {
@@ -109,14 +111,14 @@ impl Application {
         }
     }
 
-    fn listen(&mut self, sender: mpsc::UnboundedSender<Key>) {
+    fn listen(&mut self, sender: mpsc::UnboundedSender<Key>) -> JoinHandle<()> {
         let stdin = stdin();
-        tokio::task::spawn_blocking(move || {
+        spawn(move || {
             for input in stdin.keys() {
                 if let Ok(event) = input {
                     sender.send(event).unwrap();
                 }
             };
-        });
+        })
     }
 }
