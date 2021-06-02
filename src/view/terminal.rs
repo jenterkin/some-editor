@@ -1,6 +1,7 @@
 use super::traits::View as ViewTrait;
 use crate::application::buffer::Buffer;
 use crate::application::modes::Modes;
+use crate::highlight::Highlighter;
 use std::io::{stdout, BufWriter, Stdout, Write};
 use termion;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -81,23 +82,26 @@ impl Terminal {
         };
 
         let mut row = 1;
-        for line_num in start..end - 1 {
+        let mut view = String::from("");
+        for line_num in 0..num_lines - 1 {
             let line = buffer.data.line(line_num);
             if let Some(line_str) = line.as_str() {
+                view.push_str(line_str);
                 row += 1;
-                let mut line_data = String::from(line_str);
+                //let mut line_data = String::from(line_str);
                 if let Some(selections) = &buffer.selections.get_selections_for_line(line_num) {
-                    let line_index = buffer.data.line_to_byte(line_num);
-                    line_data = self.highlight_line(line_data.to_string(), line_index, &selections);
+                    // let line_index = buffer.data.line_to_byte(line_num);
+                    // line_data = self.highlight_line(line_data.to_string(), line_index, &selections);
                 }
-                write!(
-                    self.output,
-                    "{}{}",
-                    &line_data,
-                    termion::cursor::Goto(1, row)
-                )
-                .unwrap();
             }
+        }
+        view = Highlighter::new().highlight(&view);
+        // view = self.highlight(view);
+        let lines = view.split('\n');
+        let mut row = 1;
+        for line in &view.split('\n').collect::<Vec<&str>>()[start..end] {
+            row += 1;
+            write!(self.output, "{}{}", line, termion::cursor::Goto(1, row)).unwrap();
         }
     }
 

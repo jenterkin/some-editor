@@ -34,6 +34,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
+name = "cc"
+version = "1.0.68"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a72c244c1ff497a746a7e1fb3d14bd08420ecda70c8f25c7112f2781652d787"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -306,6 +312,10 @@ dependencies = [
  "ropey",
  "termion",
  "tokio",
+ "tree-sitter 0.17.1",
+ "tree-sitter-highlight",
+ "tree-sitter-python",
+ "tree-sitter-rust",
  "xi-rope",
 ]
 
@@ -372,6 +382,54 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tree-sitter"
+version = "0.17.1"
+source = "git+https://github.com/tree-sitter/tree-sitter.git?tag=v0.19.0#889dcef50b11919e9d2b27b708503c29cfa46e12"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter"
+version = "0.19.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad726ec26496bf4c083fff0f43d4eb3a2ad1bba305323af5ff91383c0b6ecac0"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter-highlight"
+version = "0.3.0"
+source = "git+https://github.com/tree-sitter/tree-sitter.git?tag=v0.19.0#889dcef50b11919e9d2b27b708503c29cfa46e12"
+dependencies = [
+ "regex",
+ "tree-sitter 0.17.1",
+]
+
+[[package]]
+name = "tree-sitter-python"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5646bfe71c4eb1c21b714ce0c38334c311eab767095582859e85da6281e9fd6c"
+dependencies = [
+ "cc",
+ "tree-sitter 0.19.5",
+]
+
+[[package]]
+name = "tree-sitter-rust"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "784f7ef9cdbd4c895dc2d4bb785e95b4a5364a602eec803681db83d1927ddf15"
+dependencies = [
+ "cc",
+ "tree-sitter 0.19.5",
 ]
 
 [[package]]

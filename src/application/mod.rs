@@ -29,12 +29,12 @@ impl Application {
             mode: Modes::Normal,
             command: String::from(""),
             view: Terminal::new(),
-            buffer: Buffer::new(fs::read_to_string("src/application/mod.rs").unwrap()),
+            buffer: Buffer::new(fs::read_to_string("src/view/terminal.rs").unwrap()),
         }
     }
 
     fn handle_command(&mut self) {
-        debug!("handling command: {}", self.command.as_str());
+        debug!("Executing command: {}", self.command.as_str());
         match self.command.as_str() {
             "q" => self.quit = true,
             _ => self.change_mode(Modes::Normal),
@@ -92,12 +92,15 @@ impl Application {
     }
 
     pub async fn start(mut self) {
+        debug!("Starting server");
         self.view.start();
         self.view.render(&self.buffer, &self.command);
 
         let (sender, mut receiver) = mpsc::unbounded_channel();
         let listener = self.listen(sender);
         self.handle_events(&mut receiver).await;
+        debug!("Exiting");
+
         drop(listener);
     }
 
