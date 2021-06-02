@@ -1,14 +1,16 @@
 pub mod buffer;
 pub mod modes;
 
+use log::{debug};
 use crate::view::terminal::Terminal;
 use crate::view::traits::View;
 use buffer::Buffer;
 use modes::Modes;
 use std::fs;
+use std::io::stdin;
 use termion::event::Key;
-use termion::input::{Keys, TermRead};
-use termion::AsyncReader;
+use termion::input::TermRead;
+use tokio::sync::mpsc;
 
 /// `Application` handles the logic of the application and is responsible for managing state.
 pub struct Application {
@@ -16,7 +18,6 @@ pub struct Application {
     mode: Modes,
     command: String,
     view: Terminal,
-    input: Keys<AsyncReader>,
     buffer: Buffer,
 }
 
@@ -27,12 +28,12 @@ impl Application {
             mode: Modes::Normal,
             command: String::from(""),
             view: Terminal::new(),
-            input: termion::async_stdin().keys(),
             buffer: Buffer::new(fs::read_to_string("src/application/mod.rs").unwrap()),
         }
     }
 
     fn handle_command(&mut self) {
+        debug!("handling command: {}", self.command.as_str());
         match self.command.as_str() {
             "q" => self.quit = true,
             _ => self.change_mode(Modes::Normal),
@@ -89,20 +90,33 @@ impl Application {
         }
     }
 
-    pub fn start(mut self) {
+    pub async fn start(mut self) {
         self.view.start();
         self.view.render(&self.buffer, &self.command);
-        self.listen();
+
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        self.listen(sender);
+        self.handle_events(&mut receiver).await;
     }
 
-    fn listen(mut self) {
+    async fn handle_events(&mut self, receiver: &mut mpsc::UnboundedReceiver<Key>) {
         while !self.quit {
-            let input = self.input.next();
-
+            let input = receiver.recv().await;
             if let Some(event) = input {
-                self.handle_event(event.unwrap());
+                self.handle_event(event);
                 self.view.render(&self.buffer, &self.command);
             }
         }
+    }
+
+    fn listen(&mut self, sender: mpsc::UnboundedSender<Key>) {
+        let stdin = stdin();
+        tokio::task::spawn_blocking(move || {
+            for input in stdin.keys() {
+                if let Ok(event) = input {
+                    sender.send(event).unwrap();
+                }
+            };
+        });
     }
 }
