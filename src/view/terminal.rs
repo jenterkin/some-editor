@@ -43,37 +43,9 @@ impl Terminal {
         };
     }
 
-    fn highlight_line(
-        &mut self,
-        line: String,
-        line_index: usize,
-        selections: &Vec<(usize, usize)>,
-    ) -> String {
-        // TODO(jenterkin): support multiple selection highlights.
-        if selections.len() > 0 {
-            for selection in selections {
-                let mut result = String::from("");
-                let red = termion::color::Red.bg_str();
-                let reset = termion::color::Reset.bg_str();
-                let start = selection.0 - line_index;
-                let end = selection.1 - line_index + red.len();
-                if start == 0 {
-                    result.push_str(red);
-                } else {
-                    result = line[0..start].to_string();
-                    result.push_str(red);
-                }
-                result.push_str(&line[start..]);
-                result = result[..end].to_string() + reset + &result[end..].to_string();
-                return result;
-            }
-        }
-        return line;
-    }
-
     fn write_visible_lines(&mut self, buffer: &Buffer) {
         let start = self.top;
-        let height = terminal_size().unwrap().1 as usize;
+        let height = terminal_size().unwrap().1;
         let num_lines = buffer.data.len_lines();
         let end = if (num_lines - start) > height as usize {
             self.top + height as usize
@@ -81,21 +53,6 @@ impl Terminal {
             num_lines
         };
 
-        let mut row = 1;
-        let mut view = String::from("");
-        for line_num in 0..num_lines - 1 {
-            let line = buffer.data.line(line_num);
-            if let Some(line_str) = line.as_str() {
-                view.push_str(line_str);
-                row += 1;
-                //let mut line_data = String::from(line_str);
-                if let Some(selections) = &buffer.selections.get_selections_for_line(line_num) {
-                    // let line_index = buffer.data.line_to_byte(line_num);
-                    // line_data = self.highlight_line(line_data.to_string(), line_index, &selections);
-                }
-            }
-        }
-        // view = self.highlight(view);
         let mut row = 1;
         for line in &self.processed_buffer.split('\n').collect::<Vec<&str>>()[start..end] {
             row += 1;
@@ -118,7 +75,7 @@ impl Terminal {
 impl ViewTrait for Terminal {
     fn start(&mut self) {
         self.update_position(self.position.col, self.position.row);
-        write!(self.output, "{}", termion::cursor::Hide);
+        write!(self.output, "{}", termion::cursor::Hide).unwrap();
     }
 
     fn change_mode(&mut self, mode: Modes) {
@@ -175,15 +132,28 @@ impl ViewTrait for Terminal {
 
     fn render(&mut self, buffer: &Buffer, command: &String) {
         if self.processed_buffer == String::from("") {
-            self.processed_buffer = self.highlighter.highlight(&buffer.data.to_string());
+            let term_width = termion::terminal_size().unwrap().0;
+            let mut lines = vec![];
+            // Pads the end of the liens with spaces to clear anything that was previously there.
+            // This is to work around the fact that using `termion::clear::All` then writing causes
+            // a ridiculous amount of flickering.
+            for line in buffer.data.to_string().split('\n').collect::<Vec<&str>>() {
+                let empty = term_width as isize - line.len() as isize;
+                if empty > 0 {
+                    lines.push(format!(
+                        "{}{}",
+                        line,
+                        std::iter::repeat(" ")
+                            .take(empty as usize)
+                            .collect::<String>()
+                            .as_str()
+                    ));
+                } else {
+                    lines.push(format!("{}", line));
+                }
+            }
+            self.processed_buffer = self.highlighter.highlight(&lines.join("\n"));
         }
-        write!(
-            self.output,
-            "{}{}",
-            termion::clear::All,
-            termion::cursor::Goto(1, 1)
-        )
-        .unwrap();
         self.write_visible_lines(&buffer);
         self.update_position(self.position.row, self.position.col);
         self.output.flush().unwrap();

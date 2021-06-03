@@ -7,9 +7,6 @@ use tree_sitter_highlight::Highlighter as TSHighlighter;
 extern "C" {
     fn tree_sitter_rust() -> Language;
 }
-extern "C" {
-    fn tree_sitter_python() -> Language;
-}
 
 struct HighlightColor {
     name: String,

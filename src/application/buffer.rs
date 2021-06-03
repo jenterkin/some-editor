@@ -25,17 +25,6 @@ impl Selections {
         }
     }
 
-    pub fn get_selections_for_line(&self, index: usize) -> Option<Vec<(usize, usize)>> {
-        if let Some(value) = self.selections.get(&index) {
-            let mut selections = vec![];
-            for selection in value {
-                selections.push((selection.start, selection.end));
-            }
-            return Some(selections);
-        };
-        None
-    }
-
     pub fn update_root_selection(&mut self, start_delta: isize, end_delta: isize) {
         let selection = self.selections.get_mut(&self.root).unwrap();
 
