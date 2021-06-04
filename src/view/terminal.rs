@@ -2,6 +2,7 @@ use super::traits::View as ViewTrait;
 use crate::application::buffer::Buffer;
 use crate::application::modes::Modes;
 use crate::highlight::Highlighter;
+use ropey::Rope;
 use std::io::{stdout, BufWriter, Stdout, Write};
 use termion;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -22,7 +23,7 @@ pub struct Terminal {
     pub command: String,
     mode: Modes,
     highlighter: Highlighter,
-    processed_buffer: String,
+    processed_buffer: Rope,
 }
 
 impl Terminal {
@@ -39,25 +40,8 @@ impl Terminal {
             command: String::from(""),
             mode: Modes::Normal,
             highlighter: Highlighter::new(),
-            processed_buffer: String::from(""),
+            processed_buffer: Rope::from(""),
         };
-    }
-
-    fn write_visible_lines(&mut self, buffer: &Buffer) {
-        let start = self.top;
-        let height = terminal_size().unwrap().1;
-        let num_lines = buffer.data.len_lines();
-        let end = if (num_lines - start) > height as usize {
-            self.top + height as usize
-        } else {
-            num_lines
-        };
-
-        let mut row = 1;
-        for line in &self.processed_buffer.split('\n').collect::<Vec<&str>>()[start..end] {
-            row += 1;
-            write!(self.output, "{}{}", line, termion::cursor::Goto(1, row)).unwrap();
-        }
     }
 
     fn update_position(&mut self, row: u16, col: u16) {
@@ -131,30 +115,25 @@ impl ViewTrait for Terminal {
     }
 
     fn render(&mut self, buffer: &Buffer, command: &String) {
-        if self.processed_buffer == String::from("") {
-            let term_width = termion::terminal_size().unwrap().0;
-            let mut lines = vec![];
-            // Pads the end of the liens with spaces to clear anything that was previously there.
-            // This is to work around the fact that using `termion::clear::All` then writing causes
-            // a ridiculous amount of flickering.
-            for line in buffer.data.to_string().split('\n').collect::<Vec<&str>>() {
-                let empty = term_width as isize - line.len() as isize;
-                if empty > 0 {
-                    lines.push(format!(
-                        "{}{}",
-                        line,
-                        std::iter::repeat(" ")
-                            .take(empty as usize)
-                            .collect::<String>()
-                            .as_str()
-                    ));
-                } else {
-                    lines.push(format!("{}", line));
-                }
-            }
-            self.processed_buffer = self.highlighter.highlight(&lines.join("\n"));
+        if self.processed_buffer.len_chars() == 0 {
+            self.processed_buffer =
+                Rope::from(self.highlighter.highlight(&buffer.data.clone().to_string()));
         }
-        self.write_visible_lines(&buffer);
+
+        let mut row = 1;
+        let term_height = termion::terminal_size().unwrap().1;
+        for i in self.top..self.top + term_height as usize - 1 {
+            write!(
+                self.output,
+                "{}{}{}",
+                termion::cursor::Goto(1, row),
+                termion::clear::CurrentLine,
+                self.processed_buffer.line(i).to_string()
+            )
+            .unwrap();
+            row += 1;
+        }
+
         self.update_position(self.position.row, self.position.col);
         self.output.flush().unwrap();
 
