@@ -76,11 +76,10 @@ fn get_highlight_color(color: usize) -> String {
     return Fg(color::White).to_string();
 }
 
-#[derive(Copy, Clone)]
-struct Highlight {
-    start: usize,
-    end: usize,
-    color: usize,
+pub struct Highlight {
+    pub start: usize,
+    pub end: usize,
+    pub color: String,
 }
 
 pub struct Highlighter {
@@ -101,7 +100,12 @@ impl Highlighter {
         }
     }
 
-    fn get_highlights(&mut self, text: &String) -> Vec<Highlight> {
+    pub fn get_highlights(
+        &mut self,
+        text: &String,
+        start_bound: usize,
+        end_bound: usize,
+    ) -> Vec<Highlight> {
         let highlights = self
             .highlighter
             .highlight(&self.rust_config, text.as_bytes(), None, |_| None)
@@ -111,17 +115,17 @@ impl Highlighter {
         let mut hl = Highlight {
             start: 0,
             end: 0,
-            color: 999,
+            color: String::from(""),
         };
 
         for event in highlights {
             match event.unwrap() {
                 HighlightEvent::Source { start, end } => {
-                    if hl.color == 999 {
+                    if hl.color.len() == 0 && start >= start_bound && end <= end_bound {
                         hls.push(Highlight {
                             start: start,
                             end: end,
-                            color: 999,
+                            color: termion::color::Reset.fg_str().to_string(),
                         });
                     } else {
                         hl.start = start;
@@ -129,32 +133,20 @@ impl Highlighter {
                     }
                 }
                 HighlightEvent::HighlightStart(s) => {
-                    hl.color = s.0;
+                    hl.color = get_highlight_color(s.0);
                 }
                 HighlightEvent::HighlightEnd => {
-                    hls.push(hl);
+                    if hl.start >= start_bound && hl.end <= end_bound {
+                        hls.push(hl);
+                    }
                     hl = Highlight {
                         start: 0,
                         end: 0,
-                        color: 999,
+                        color: String::from(""),
                     };
                 }
             }
         }
         hls
-    }
-
-    pub fn highlight(&mut self, text: &String) -> String {
-        self.get_highlights(text)
-            .iter()
-            .map(|hl| -> String {
-                format!(
-                    "{}{}",
-                    get_highlight_color(hl.color).as_str(),
-                    text.get(hl.start..hl.end).unwrap()
-                )
-            })
-            .collect::<Vec<String>>()
-            .join("")
     }
 }

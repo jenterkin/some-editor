@@ -1,13 +1,40 @@
 use super::traits::View as ViewTrait;
 use crate::application::buffer::Buffer;
 use crate::application::modes::Modes;
+use crate::display::{Display, Point, Rect};
 use crate::highlight::Highlighter;
 use ropey::Rope;
 use std::io::{stdout, BufWriter, Stdout, Write};
 use termion;
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::screen::AlternateScreen;
-use termion::terminal_size;
+
+fn char_idxs_to_points(
+    start: usize,
+    end: usize,
+    offset: usize,
+    content: ropey::RopeSlice,
+) -> (Point, Point) {
+    let start_idx = start - offset;
+    let end_idx = end - offset;
+
+    let start_row = content.char_to_line(start_idx);
+    let end_row = content.char_to_line(end_idx);
+
+    let start_col = start_idx - content.line_to_char(start_row);
+    let end_col = end_idx - content.line_to_char(end_row);
+
+    (
+        Point {
+            row: start_row,
+            col: start_col,
+        },
+        Point {
+            row: end_row,
+            col: end_col,
+        },
+    )
+}
 
 #[derive(Clone)]
 struct CursorPosition {
@@ -116,25 +143,61 @@ impl ViewTrait for Terminal {
 
     fn render(&mut self, buffer: &Buffer, command: &String) {
         if self.processed_buffer.len_chars() == 0 {
-            self.processed_buffer =
-                Rope::from(self.highlighter.highlight(&buffer.data.clone().to_string()));
+            self.processed_buffer = buffer.data.clone();
         }
 
-        let mut row = 1;
-        let term_height = termion::terminal_size().unwrap().1;
-        for i in self.top..self.top + term_height as usize - 1 {
-            write!(
-                self.output,
-                "{}{}{}",
-                termion::cursor::Goto(1, row),
-                termion::clear::CurrentLine,
-                self.processed_buffer.line(i).to_string()
-            )
-            .unwrap();
-            row += 1;
+        let (width, height) = termion::terminal_size().unwrap();
+        let start_line_idx = self.processed_buffer.line_to_char(self.top);
+        let end_line_idx = self
+            .processed_buffer
+            .line_to_char(self.top + height as usize);
+        let visible_content = self.processed_buffer.slice(start_line_idx..end_line_idx);
+
+        let mut display = Display::new(
+            Rect {
+                height: height - 1,
+                width: width,
+            },
+            &visible_content.to_string(),
+        );
+
+        let highlights = self.highlighter.get_highlights(
+            &self.processed_buffer.to_string(),
+            start_line_idx,
+            end_line_idx,
+        );
+        for highlight in highlights {
+            let (start_point, end_point) = char_idxs_to_points(
+                highlight.start,
+                highlight.end,
+                start_line_idx,
+                visible_content,
+            );
+            display.highlight(start_point, end_point, Some(&highlight.color), None);
         }
 
-        self.update_position(self.position.row, self.position.col);
+        for selection in &buffer.selections {
+            let (start_point, end_point) = char_idxs_to_points(
+                selection.start,
+                selection.end,
+                start_line_idx,
+                visible_content,
+            );
+            display.highlight(
+                start_point,
+                end_point,
+                None,
+                Some(&termion::color::LightBlack.bg_str().to_string()),
+            );
+        }
+
+        write!(
+            self.output,
+            "{}{}",
+            termion::cursor::Goto(1, 1),
+            display.rendered()
+        )
+        .unwrap();
         self.output.flush().unwrap();
 
         match self.mode {
