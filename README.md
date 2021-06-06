@@ -11,3 +11,4 @@ Just expiramenting with making a text editor. Planning on making a modal editor 
 - docs
 - any actual editing capabilities
 - plugin support (via embedded python)
+- the ability to open up a file that isn't `src/view/terminal.rs`
