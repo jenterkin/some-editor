@@ -128,25 +128,40 @@ impl ViewTrait for Terminal {
         self.update_position(self.position.row, self.position.col);
     }
 
-    fn scroll_up(&mut self) {
+    fn scroll_up(&mut self, buffer: &mut Buffer) {
         if self.top > 0 {
+            let height = termion::terminal_size().unwrap().1 as usize;
+            if buffer.get_root_selection_line() >= self.top + height - 2 {
+                buffer.select_char_up();
+            }
             self.top -= 1;
         }
     }
 
-    fn scroll_down(&mut self, len_lines: usize) {
+    fn scroll_down(&mut self, buffer: &mut Buffer) {
         // why is it `- 2`?
-        if self.top < len_lines - 2 {
+        if self.top < buffer.len_lines() - 2 {
+            if buffer.get_root_selection_line() <= self.top {
+                buffer.select_char_down();
+            }
             self.top += 1;
         }
     }
 
     fn render(&mut self, buffer: &Buffer, command: &String) {
+        let (width, height) = termion::terminal_size().unwrap();
+
+        let selection_line = buffer.get_root_selection_line();
+        if selection_line > self.top + height as usize - 2 {
+            self.top += 1;
+        } else if selection_line < self.top {
+            self.top -= 1;
+        }
+
         if self.processed_buffer.len_chars() == 0 {
             self.processed_buffer = buffer.data.clone();
         }
 
-        let (width, height) = termion::terminal_size().unwrap();
         let start_line_idx = self.processed_buffer.line_to_char(self.top);
         let end_line_idx = self
             .processed_buffer

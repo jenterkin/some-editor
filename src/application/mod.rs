@@ -65,8 +65,8 @@ impl Application {
             Key::Char('k') => self.buffer.select_char_up(),
             Key::Char('l') => self.buffer.select_char_right(),
             // Scrolling
-            Key::Ctrl('e') => self.view.scroll_down(self.buffer.len_lines()),
-            Key::Ctrl('y') => self.view.scroll_up(),
+            Key::Ctrl('e') => self.view.scroll_down(&mut self.buffer),
+            Key::Ctrl('y') => self.view.scroll_up(&mut self.buffer),
             _ => {}
         }
     }
